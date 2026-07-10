@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Handwritten Digit Recognition</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+<style>
+
+body{
+    font-family:'Cairo',sans-serif;
+    background:#f3f4f6;
+}
+
+canvas{
+
+    background:white;
+
+    border:4px dashed #6366F1;
+
+    border-radius:15px;
+
+    cursor:crosshair;
+
+    touch-action:none;
+
+}
+
+</style>
+
+</head>
+
+<body class="min-h-screen flex justify-center items-center">
+
+<div class="bg-white shadow-2xl rounded-3xl p-8 w-[900px]">
+
+<div class="grid grid-cols-2 gap-10">
+
+<div class="text-center">
+
+<h1 class="text-3xl font-bold text-indigo-700 mb-2">
+
+Handwritten Digit Recognition
+
+</h1>
+
+<p class="text-gray-500 mb-5">
+
+ارسم رقماً داخل المربع ثم اضغط تحليل.
+
+</p>
+
+<canvas
+id="canvas"
+width="280"
+height="280">
+
+</canvas>
+
+<div class="flex gap-4 mt-5">
+
+<button
+
+id="clearBtn"
+
+class="w-full bg-gray-300 hover:bg-gray-400 rounded-xl py-3 font-bold">
+
+مسح
+
+</button>
+
+<button
+
+id="predictBtn"
+
+class="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl py-3 font-bold">
+
+تحليل
+
+</button>
+
+</div>
+
+</div>
+
+<div class="flex flex-col justify-center items-center">
+
+<h2 class="text-2xl font-bold text-indigo-800">
+
+Prediction
+
+</h2>
+
+<div
+
+class="w-44 h-44 rounded-full border-8 border-indigo-600 flex justify-center items-center mt-6 shadow-xl">
+
+<span
+
+id="digit"
+
+class="text-7xl font-extrabold">
+
+-
+
+</span>
+
+</div>
+
+<div class="mt-6 text-center">
+
+<p class="text-lg">
+
+Confidence
+
+</p>
+
+<p
+
+id="confidence"
+
+class="text-3xl font-bold text-indigo-700">
+
+--
+
+</p>
+
+</div>
+
+<div class="mt-8">
+
+<p class="text-gray-500 text-sm mb-2">
+
+Processed Image
+
+</p>
+
+<img
+
+id="processed"
+
+width="120"
+
+class="border rounded-lg shadow">
+
+</div>
+
+<div
+
+id="status"
+
+class="mt-6 text-gray-600">
+
+جاهز للرسم...
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+<script>
+
+const canvas=document.getElementById("canvas");
+
+const ctx=canvas.getContext("2d");
+
+let drawing=false;
+
+ctx.fillStyle="white";
+
+ctx.fillRect(0,0,canvas.width,canvas.height);
+
+ctx.strokeStyle="black";
+
+ctx.lineWidth=18;
+
+ctx.lineCap="round";
+
+ctx.lineJoin="round";
+
+function position(e){
+
+const rect=canvas.getBoundingClientRect();
+
+if(e.touches){
+
+return{
+
+x:e.touches[0].clientX-rect.left,
+
+y:e.touches[0].clientY-rect.top
+
+};
+
+}
+
+return{
+
+x:e.clientX-rect.left,
+
+y:e.clientY-rect.top
+
+};
+
+}
+
+function start(e){
+
+drawing=true;
+
+const p=position(e);
+
+ctx.beginPath();
+
+ctx.moveTo(p.x,p.y);
+
+e.preventDefault();
+
+}
+
+function draw(e){
+
+if(!drawing)return;
+
+const p=position(e);
+
+ctx.lineTo(p.x,p.y);
+
+ctx.stroke();
+
+e.preventDefault();
+
+}
+
+function stop(){
+
+drawing=false;
+
+}
+
+canvas.addEventListener("mousedown",start);
+
+canvas.addEventListener("mousemove",draw);
+
+canvas.addEventListener("mouseup",stop);
+
+canvas.addEventListener("mouseleave",stop);
+
+canvas.addEventListener("touchstart",start);
+
+canvas.addEventListener("touchmove",draw);
+
+canvas.addEventListener("touchend",stop);
+
+document.getElementById("clearBtn").onclick=function(){
+
+ctx.fillStyle="white";
+
+ctx.fillRect(0,0,canvas.width,canvas.height);
+
+document.getElementById("digit").innerHTML="-";
+
+document.getElementById("confidence").innerHTML="--";
+
+document.getElementById("processed").src="";
+
+document.getElementById("status").innerHTML="تم مسح اللوحة.";
+
+}
+
+document.getElementById("predictBtn").onclick=function(){
+
+document.getElementById("status").innerHTML="جاري التحليل...";
+
+const image=canvas.toDataURL("image/png");
+
+fetch("/predict_api",{
+
+method:"POST",
+
+headers:{
+
+"Content-Type":"application/json"
+
+},
+
+body:JSON.stringify({
+
+image_data:image
+
+})
+
+})
+
+.then(response=>response.json())
+
+.then(data=>{
+
+if(data.success){
+
+document.getElementById("digit").innerHTML=data.digit;
+
+document.getElementById("confidence").innerHTML=
+
+data.confidence+" %";
+
+document.getElementById("processed").src=
+
+"data:image/png;base64,"+
+
+data.processed_image;
+
+document.getElementById("status").innerHTML=
+
+"تم التعرف على الرقم بنجاح.";
+
+}
+
+else{
+
+document.getElementById("status").innerHTML=
+
+data.error;
+
+}
+
+})
+
+.catch(err=>{
+
+document.getElementById("status").innerHTML=
+
+err;
+
+});
+
+}
+
+</script>
+
+</body>
+
+</html>
